@@ -1,13 +1,8 @@
 // index.js
 const express = require('express');
-const sequelize = require('./database');
+const supabase = require('./supabaseClient');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
-const User = require('./models/User');
-const Company = require('./models/Company');
-
-// Define associações
-User.associate({ Company });
 
 dotenv.config();
 const app = express();
@@ -15,11 +10,32 @@ const app = express();
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 
-// Sincronizando o banco de dados
-sequelize.sync({ force: true }) // Use force: true apenas em desenvolvimento para recriar as tabelas
-    .then(() => console.log('Banco de dados conectado e sincronizado!'))
-    .catch(err => console.error('Erro ao conectar ao banco de dados:', err));
+app.post('/api/users', async (req, res) => {
+    const { username, password, userType, companyId } = req.body;
 
+    // Insere um novo usuário na tabela 'users'
+    const { data, error } = await supabase
+        .from('users') // Nome da tabela
+        .insert([{ username, password, userType, companyId }]);
+
+    if (error) {
+        return res.status(400).json({ error: error.message });
+    }
+
+    res.status(201).json(data);
+});
+
+app.get('/api/users', async (req, res) => {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*'); // Seleciona todos os usuários
+
+    if (error) {
+        return res.status(400).json({ error: error.message });
+    }
+
+    res.status(200).json(data);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
